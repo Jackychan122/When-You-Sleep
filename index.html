@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When-You-Sleep</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        'primary-light': '#7E7EE6',
+                        'primary-dark': '#4847B3',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .clock-face {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+        }
+
+        .clock-hand {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
+            z-index: 2;
+        }
+
+        .hour-marks li {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            font-size: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .hour-marks li:hover {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+
+        .color-scale-0 { background-color: rgba(93, 92, 222, 0.1); }
+        .color-scale-1 { background-color: rgba(93, 92, 222, 0.2); }
+        .color-scale-2 { background-color: rgba(93, 92, 222, 0.3); }
+        .color-scale-3 { background-color: rgba(93, 92, 222, 0.4); }
+        .color-scale-4 { background-color: rgba(93, 92, 222, 0.5); }
+        .color-scale-5 { background-color: rgba(93, 92, 222, 0.6); }
+        .color-scale-6 { background-color: rgba(93, 92, 222, 0.7); }
+        .color-scale-7 { background-color: rgba(93, 92, 222, 0.8); }
+        .color-scale-8 { background-color: rgba(93, 92, 222, 0.9); }
+        .color-scale-9 { background-color: rgba(93, 92, 222, 1.0); }
+
+        .dark .color-scale-0 { background-color: rgba(93, 92, 222, 0.05); }
+        .dark .color-scale-1 { background-color: rgba(93, 92, 222, 0.1); }
+        .dark .color-scale-2 { background-color: rgba(93, 92, 222, 0.2); }
+        .dark .color-scale-3 { background-color: rgba(93, 92, 222, 0.3); }
+        .dark .color-scale-4 { background-color: rgba(93, 92, 222, 0.4); }
+        .dark .color-scale-5 { background-color: rgba(93, 92, 222, 0.5); }
+        .dark .color-scale-6 { background-color: rgba(93, 92, 222, 0.6); }
+        .dark .color-scale-7 { background-color: rgba(93, 92, 222, 0.7); }
+        .dark .color-scale-8 { background-color: rgba(93, 92, 222, 0.85); }
+        .dark .color-scale-9 { background-color: rgba(93, 92, 222, 1.0); }
+
+        /* Custom tooltip styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .dark .tooltip .tooltip-text {
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #000;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(93, 92, 222, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #5D5CDE;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen transition-colors duration-200">
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <header class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-3xl font-bold text-primary dark:text-primary-light">When-You-Sleep</h1>
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200">
+                    <svg id="lightIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12z" fill-rule="evenodd" clip-rule="evenodd"></path>
+                        <path d="M10 4a1 1 0 011 1v1a1 1 0 11-2 0V5a1 1 0 011-1zm0 10a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm7-7a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zm13.7 5.3a1 1 0 01-1.4 0l-1-1a1 1 0 011.4-1.4l1 1a1 1 0 010 1.4zM6.3 6.3a1 1 0 01-1.4 0l-1-1a1 1 0 011.4-1.4l1 1a1 1 0 010 1.4zm12.4 0a1 1 0 010-1.4l1-1a1 1 0 111.4 1.4l-1 1a1 1 0 01-1.4 0zM6.3 13.7a1 1 0 010 1.4l-1 1a1 1 0 11-1.4-1.4l1-1a1 1 0 011.4 0z"></path>
+                    </svg>
+                    <svg id="darkIcon" class="w-6 h-6 hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                </button>
+            </div>
+            <nav class="flex w-full rounded-lg overflow-hidden shadow-md">
+                <button id="trackerTab" class="tab-button flex-1 py-3 bg-primary text-white text-center">
+                    <span>📅 Tracker</span>
+                </button>
+                <button id="newEntryTab" class="tab-button flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-center">
+                    <span>➕ New Entry</span>
+                </button>
+                <button id="settingsTab" class="tab-button flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-center">
+                    <span>⚙️ Settings</span>
+                </button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Tracker Section -->
+            <section id="trackerSection" class="tab-content block">
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xl font-semibold">Sleep Calendar</h2>
+                        <div class="text-sm">
+                            <span class="mr-2">📊 Darker = Longer Sleep</span>
+                            <span>🟣 = Quality Sleep (≥4★)</span>
+                        </div>
+                    </div>
+                    <div id="calendar" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <div id="calendarGrid" class="grid grid-cols-7 gap-1">
+                            <!-- Calendar will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <h3 class="text-lg font-semibold mb-3">Weekly Sleep Duration</h3>
+                        <div id="weeklyChart" class="h-48">
+                            <!-- SVG chart will be generated here -->
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <h3 class="text-lg font-semibold mb-3">Sleep Stats</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">30-Day Average</p>
+                                <div class="flex justify-between items-center">
+                                    <p id="averageSleep" class="text-xl font-bold">--</p>
+                                    <p class="text-sm">Goal: 8h</p>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-1">
+                                    <div id="averageProgress" class="bg-primary rounded-full h-2.5" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Current Streak</p>
+                                <p id="streakCount" class="text-xl font-bold">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- New Entry Section -->
+            <section id="newEntrySection" class="tab-content hidden">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-md mb-6">
+                    <h2 class="text-xl font-semibold mb-4">Add Sleep Entry</h2>
+                    <form id="sleepForm" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Date</label>
+                            <input type="date" id="sleepDate" class="w-full px-3 py-2 text-base rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Sleep Time</label>
+                                <div class="flex items-center space-x-4">
+                                    <div class="relative">
+                                        <input type="text" id="sleepTimeDisplay" class="w-full px-3 py-2 text-base rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer" readonly value="10:00 PM">
+                                        <input type="hidden" id="sleepTime" value="22:00">
+                                    </div>
+                                </div>
+                                <div id="sleepClock" class="mt-4 hidden">
+                                    <div class="clock-face bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md">
+                                        <div class="clock-center bg-primary"></div>
+                                        <div id="sleepHourHand" class="clock-hand h-1.5 w-40 bg-primary rounded-full" style="transform: translate(-50%, -50%) rotate(0deg)"></div>
+                                        <ul class="hour-marks list-none">
+                                            <!-- Hour markers will be added via JS -->
+                                        </ul>
+                                    </div>
+                                    <div class="mt-4 flex justify-center space-x-4">
+                                        <div>
+                                            <label class="text-sm font-medium">Hour</label>
+                                            <div class="flex border border-gray-300 dark:border-gray-600 rounded-md">
+                                                <button type="button" id="sleepHourDown" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">−</button>
+                                                <input type="number" id="sleepHour" min="1" max="12" value="10" class="w-16 px-2 py-1 text-center text-base bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <button type="button" id="sleepHourUp" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600">+</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium">Minute</label>
+                                            <div class="flex border border-gray-300 dark:border-gray-600 rounded-md">
+                                                <button type="button" id="sleepMinuteDown" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">−</button>
+                                                <input type="number" id="sleepMinute" min="0" max="59" value="00" class="w-16 px-2 py-1 text-center text-base bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <button type="button" id="sleepMinuteUp" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600">+</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium">AM/PM</label>
+                                            <select id="sleepAmPm" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <option value="AM">AM</option>
+                                                <option value="PM" selected>PM</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Wake Time</label>
+                                <div class="flex items-center space-x-4">
+                                    <div class="relative">
+                                        <input type="text" id="wakeTimeDisplay" class="w-full px-3 py-2 text-base rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer" readonly value="6:00 AM">
+                                        <input type="hidden" id="wakeTime" value="06:00">
+                                    </div>
+                                </div>
+                                <div id="wakeClock" class="mt-4 hidden">
+                                    <div class="clock-face bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md">
+                                        <div class="clock-center bg-primary"></div>
+                                        <div id="wakeHourHand" class="clock-hand h-1.5 w-40 bg-primary rounded-full" style="transform: translate(-50%, -50%) rotate(0deg)"></div>
+                                        <ul class="hour-marks list-none">
+                                            <!-- Hour markers will be added via JS -->
+                                        </ul>
+                                    </div>
+                                    <div class="mt-4 flex justify-center space-x-4">
+                                        <div>
+                                            <label class="text-sm font-medium">Hour</label>
+                                            <div class="flex border border-gray-300 dark:border-gray-600 rounded-md">
+                                                <button type="button" id="wakeHourDown" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">−</button>
+                                                <input type="number" id="wakeHour" min="1" max="12" value="6" class="w-16 px-2 py-1 text-center text-base bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <button type="button" id="wakeHourUp" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600">+</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium">Minute</label>
+                                            <div class="flex border border-gray-300 dark:border-gray-600 rounded-md">
+                                                <button type="button" id="wakeMinuteDown" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-gray-600">−</button>
+                                                <input type="number" id="wakeMinute" min="0" max="59" value="00" class="w-16 px-2 py-1 text-center text-base bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <button type="button" id="wakeMinuteUp" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600">+</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium">AM/PM</label>
+                                            <select id="wakeAmPm" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-primary">
+                                                <option value="AM" selected>AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Duration</label>
+                            <p id="sleepDuration" class="text-xl font-semibold">8h 00m</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Sleep Quality</label>
+                            <div class="flex space-x-2" id="ratingContainer">
+                                <button type="button" class="star-rating text-2xl text-gray-300 hover:text-yellow-400" data-rating="1">★</button>
+                                <button type="button" class="star-rating text-2xl text-gray-300 hover:text-yellow-400" data-rating="2">★</button>
+                                <button type="button" class="star-rating text-2xl text-gray-300 hover:text-yellow-400" data-rating="3">★</button>
+                                <button type="button" class="star-rating text-2xl text-gray-300 hover:text-yellow-400" data-rating="4">★</button>
+                                <button type="button" class="star-rating text-2xl text-gray-300 hover:text-yellow-400" data-rating="5">★</button>
+                            </div>
+                            <input type="hidden" id="sleepRating" value="0">
+                        </div>
+
+                        <div class="pt-4">
+                            <button type="submit" class="w-full py-2 px-4 bg-primary hover:bg-primary-dark text-white font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Save Sleep Entry
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settingsSection" class="tab-content hidden">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Settings</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-medium mb-2">Data Management</h3>
+                            <div class="flex flex-col space-y-3">
+                                <button id="exportBtn" class="flex items-center justify-center py-2 px-4 bg-primary hover:bg-primary-dark text-white font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                    <span>Export Data (JSON)</span>
+                                </button>
+                                <label for="importFile" class="flex items-center justify-center py-2 px-4 bg-primary hover:bg-primary-dark text-white font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer">
+                                    <span>Import Data (JSON)</span>
+                                </label>
+                                <input type="file" id="importFile" accept=".json" class="hidden">
+                                <button id="clearDataBtn" class="flex items-center justify-center py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    <span>Clear All Data</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Notifications -->
+        <div id="notificationContainer" class="fixed bottom-4 right-4 z-50 flex flex-col-reverse space-y-reverse space-y-2">
+            <!-- Notifications will be added here -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ----------------
+            // Theme Management
+            // ----------------
+            const lightIcon = document.getElementById('lightIcon');
+            const darkIcon = document.getElementById('darkIcon');
+            const themeToggle = document.getElementById('themeToggle');
+
+            function setTheme() {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.classList.add('dark');
+                    lightIcon.classList.remove('hidden');
+                    darkIcon.classList.add('hidden');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    lightIcon.classList.add('hidden');
+                    darkIcon.classList.remove('hidden');
+                }
+            }
+
+            setTheme();
+
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                setTheme();
+            });
+
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                lightIcon.classList.toggle('hidden');
+                darkIcon.classList.toggle('hidden');
+            });
+
+            // ----------------
+            // Tab Navigation
+            // ----------------
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            function activateTab(tabId) {
+                // Hide all tab contents
+                tabContents.forEach(content => {
+                    content.classList.add('hidden');
+                });
+
+                // Show selected tab content
+                document.getElementById(tabId + 'Section').classList.remove('hidden');
+
+                // Update tab button styles
+                tabButtons.forEach(button => {
+                    if (button.id === tabId + 'Tab') {
+                        button.classList.add('bg-primary');
+                        button.classList.add('text-white');
+                        button.classList.remove('bg-gray-200');
+                        button.classList.remove('dark:bg-gray-700');
+                    } else {
+                        button.classList.remove('bg-primary');
+                        button.classList.remove('text-white');
+                        button.classList.add('bg-gray-200');
+                        button.classList.add('dark:bg-gray-700');
+                    }
+                });
+
+                // Special handling for specific tabs
+                if (tabId === 'tracker') {
+                    renderCalendar();
+                    renderWeeklyChart();
+                    updateStats();
+                }
+            }
+
+            // Set up tab button click handlers
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.id.replace('Tab', '');
+                    activateTab(tabId);
+                });
+            });
+
+            // ----------------
+            // Clock Interface
+            // ----------------
+            
+            // Generate hour markers for both clocks
+            function generateHourMarkers(containerId) {
+                const container = document.querySelector(`#${containerId} .hour-marks`);
+                container.innerHTML = '';
+                
+                for (let i = 1; i <= 12; i++) {
+                    const li = document.createElement('li');
+                    li.textContent = i;
+                    li.dataset.hour = i;
+                    
+                    // Position hour markers in a circle
+                    const angle = (i - 3) * 30 * (Math.PI / 180); // Start at 12 o'clock
+                    const radius = 85; // Distance from center
+                    const left = 110 + radius * Math.cos(angle);
+                    const top = 110 + radius * Math.sin(angle);
+                    
+                    li.style.left = `${left}px`;
+                    li.style.top = `${top}px`;
+                    
+                    container.appendChild(li);
+                }
+            }
+
+            generateHourMarkers('sleepClock');
+            generateHourMarkers('wakeClock');
+
+            // Time picker toggle
+            document.getElementById('sleepTimeDisplay').addEventListener('click', () => {
+                document.getElementById('sleepClock').classList.toggle('hidden');
+                document.getElementById('wakeClock').classList.add('hidden');
+            });
+
+            document.getElementById('wakeTimeDisplay').addEventListener('click', () => {
+                document.getElementById('wakeClock').classList.toggle('hidden');
+                document.getElementById('sleepClock').classList.add('hidden');
+            });
+
+            // Handle hour selection
+            document.querySelectorAll('#sleepClock .hour-marks li').forEach(hour => {
+                hour.addEventListener('click', () => {
+                    const hourValue = parseInt(hour.dataset.hour);
+                    document.getElementById('sleepHour').value = hourValue;
+                    updateSleepTimeDisplay();
+                    updateSleepHourHand();
+                });
+            });
+
+            document.querySelectorAll('#wakeClock .hour-marks li').forEach(hour => {
+                hour.addEventListener('click', () => {
+                    const hourValue = parseInt(hour.dataset.hour);
+                    document.getElementById('wakeHour').value = hourValue;
+                    updateWakeTimeDisplay();
+                    updateWakeHourHand();
+                });
+            });
+
+            // Handle hour and minute controls
+            document.getElementById('sleepHourDown').addEventListener('click', () => {
+                const input = document.getElementById('sleepHour');
+                let value = parseInt(input.value) - 1;
+                if (value < 1) value = 12;
+                input.value = value;
+                updateSleepTimeDisplay();
+                updateSleepHourHand();
+            });
+
+            document.getElementById('sleepHourUp').addEventListener('click', () => {
+                const input = document.getElementById('sleepHour');
+                let value = parseInt(input.value) + 1;
+                if (value > 12) value = 1;
+                input.value = value;
+                updateSleepTimeDisplay();
+                updateSleepHourHand();
+            });
+
+            document.getElementById('sleepMinuteDown').addEventListener('click', () => {
+                const input = document.getElementById('sleepMinute');
+                let value = parseInt(input.value) - 5;
+                if (value < 0) value = 55;
+                input.value = value.toString().padStart(2, '0');
+                updateSleepTimeDisplay();
+            });
+
+            document.getElementById('sleepMinuteUp').addEventListener('click', () => {
+                const input = document.getElementById('sleepMinute');
+                let value = parseInt(input.value) + 5;
+                if (value >= 60) value = 0;
+                input.value = value.toString().padStart(2, '0');
+                updateSleepTimeDisplay();
+            });
+
+            document.getElementById('wakeHourDown').addEventListener('click', () => {
+                const input = document.getElementById('wakeHour');
+                let value = parseInt(input.value) - 1;
+                if (value < 1) value = 12;
+                input.value = value;
+                updateWakeTimeDisplay();
+                updateWakeHourHand();
+            });
+
+            document.getElementById('wakeHourUp').addEventListener('click', () => {
+                const input = document.getElementById('wakeHour');
+                let value = parseInt(input.value) + 1;
+                if (value > 12) value = 1;
+                input.value = value;
+                updateWakeTimeDisplay();
+                updateWakeHourHand();
+            });
+
+            document.getElementById('wakeMinuteDown').addEventListener('click', () => {
+                const input = document.getElementById('wakeMinute');
+                let value = parseInt(input.value) - 5;
+                if (value < 0) value = 55;
+                input.value = value.toString().padStart(2, '0');
+                updateWakeTimeDisplay();
+            });
+
+            document.getElementById('wakeMinuteUp').addEventListener('click', () => {
+                const input = document.getElementById('wakeMinute');
+                let value = parseInt(input.value) + 5;
+                if (value >= 60) value = 0;
+                input.value = value.toString().padStart(2, '0');
+                updateWakeTimeDisplay();
+            });
+
+            // Handle AM/PM change
+            document.getElementById('sleepAmPm').addEventListener('change', updateSleepTimeDisplay);
+            document.getElementById('wakeAmPm').addEventListener('change', updateWakeTimeDisplay);
+
+            // Handle direct input changes
+            document.getElementById('sleepHour').addEventListener('change', () => {
+                let value = parseInt(document.getElementById('sleepHour').value);
+                if (isNaN(value) || value < 1) value = 1;
+                if (value > 12) value = 12;
+                document.getElementById('sleepHour').value = value;
+                updateSleepTimeDisplay();
+                updateSleepHourHand();
+            });
+
+            document.getElementById('sleepMinute').addEventListener('change', () => {
+                let value = parseInt(document.getElementById('sleepMinute').value);
+                if (isNaN(value) || value < 0) value = 0;
+                if (value > 59) value = 59;
+                document.getElementById('sleepMinute').value = value.toString().padStart(2, '0');
+                updateSleepTimeDisplay();
+            });
+
+            document.getElementById('wakeHour').addEventListener('change', () => {
+                let value = parseInt(document.getElementById('wakeHour').value);
+                if (isNaN(value) || value < 1) value = 1;
+                if (value > 12) value = 12;
+                document.getElementById('wakeHour').value = value;
+                updateWakeTimeDisplay();
+                updateWakeHourHand();
+            });
+
+            document.getElementById('wakeMinute').addEventListener('change', () => {
+                let value = parseInt(document.getElementById('wakeMinute').value);
+                if (isNaN(value) || value < 0) value = 0;
+                if (value > 59) value = 59;
+                document.getElementById('wakeMinute').value = value.toString().padStart(2, '0');
+                updateWakeTimeDisplay();
+            });
+
+            // Update time displays and clock hands
+            function updateSleepTimeDisplay() {
+                const hour = parseInt(document.getElementById('sleepHour').value);
+                const minute = parseInt(document.getElementById('sleepMinute').value);
+                const ampm = document.getElementById('sleepAmPm').value;
+                
+                const displayHour = hour;
+                const displayMinute = minute.toString().padStart(2, '0');
+                
+                document.getElementById('sleepTimeDisplay').value = `${displayHour}:${displayMinute} ${ampm}`;
+                
+                // Update hidden input with 24-hour format for calculations
+                let hour24 = hour;
+                if (ampm === 'PM' && hour !== 12) hour24 += 12;
+                if (ampm === 'AM' && hour === 12) hour24 = 0;
+                
+                document.getElementById('sleepTime').value = `${hour24.toString().padStart(2, '0')}:${displayMinute}`;
+                
+                calculateDuration();
+            }
+
+            function updateWakeTimeDisplay() {
+                const hour = parseInt(document.getElementById('wakeHour').value);
+                const minute = parseInt(document.getElementById('wakeMinute').value);
+                const ampm = document.getElementById('wakeAmPm').value;
+                
+                const displayHour = hour;
+                const displayMinute = minute.toString().padStart(2, '0');
+                
+                document.getElementById('wakeTimeDisplay').value = `${displayHour}:${displayMinute} ${ampm}`;
+                
+                // Update hidden input with 24-hour format for calculations
+                let hour24 = hour;
+                if (ampm === 'PM' && hour !== 12) hour24 += 12;
+                if (ampm === 'AM' && hour === 12) hour24 = 0;
+                
+                document.getElementById('wakeTime').value = `${hour24.toString().padStart(2, '0')}:${displayMinute}`;
+                
+                calculateDuration();
+            }
+
+            function updateSleepHourHand() {
+                const hour = parseInt(document.getElementById('sleepHour').value);
+                const minute = parseInt(document.getElementById('sleepMinute').value);
+                const ampm = document.getElementById('sleepAmPm').value;
+                
+                // Convert to 24-hour format for angle calculation
+                let hour24 = hour;
+                if (ampm === 'PM' && hour !== 12) hour24 += 12;
+                if (ampm === 'AM' && hour === 12) hour24 = 0;
+                
+                // Calculate angle (30 degrees per hour, plus 0.5 degrees per minute)
+                const angle = ((hour24 % 12) * 30) + (minute * 0.5) - 90;
+                
+                document.getElementById('sleepHourHand').style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+            }
+
+            function updateWakeHourHand() {
+                const hour = parseInt(document.getElementById('wakeHour').value);
+                const minute = parseInt(document.getElementById('wakeMinute').value);
+                const ampm = document.getElementById('wakeAmPm').value;
+                
+                // Convert to 24-hour format for angle calculation
+                let hour24 = hour;
+                if (ampm === 'PM' && hour !== 12) hour24 += 12;
+                if (ampm === 'AM' && hour === 12) hour24 = 0;
+                
+                // Calculate angle (30 degrees per hour, plus 0.5 degrees per minute)
+                const angle = ((hour24 % 12) * 30) + (minute * 0.5) - 90;
+                
+                document.getElementById('wakeHourHand').style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+            }
+
+            // Initialize clock hands
+            updateSleepHourHand();
+            updateWakeHourHand();
+
+            // ----------------
+            // Duration Calculation
+            // ----------------
+            function calculateDuration() {
+                const sleepTimeStr = document.getElementById('sleepTime').value;
+                const wakeTimeStr = document.getElementById('wakeTime').value;
+                
+                if (!sleepTimeStr || !wakeTimeStr) return;
+                
+                const [sleepHour, sleepMinute] = sleepTimeStr.split(':').map(Number);
+                const [wakeHour, wakeMinute] = wakeTimeStr.split(':').map(Number);
+                
+                // Convert to minutes since midnight
+                let sleepMinutes = sleepHour * 60 + sleepMinute;
+                let wakeMinutes = wakeHour * 60 + wakeMinute;
+                
+                // If wake time is earlier than sleep time, assume it's the next day
+                if (wakeMinutes < sleepMinutes) {
+                    wakeMinutes += 24 * 60; // Add a full day
+                }
+                
+                // Calculate duration in minutes
+                const durationMinutes = wakeMinutes - sleepMinutes;
+                
+                // Convert back to hours and minutes
+                const hours = Math.floor(durationMinutes / 60);
+                const minutes = durationMinutes % 60;
+                
+                // Display
+                document.getElementById('sleepDuration').textContent = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+            }
+
+            // ----------------
+            // Star Rating
+            // ----------------
+            const stars = document.querySelectorAll('.star-rating');
+            const ratingInput = document.getElementById('sleepRating');
+            
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    const rating = parseInt(star.dataset.rating);
+                    ratingInput.value = rating;
+                    
+                    // Update star colors
+                    stars.forEach(s => {
+                        const starRating = parseInt(s.dataset.rating);
+                        if (starRating <= rating) {
+                            s.classList.add('text-yellow-400');
+                            s.classList.remove('text-gray-300');
+                        } else {
+                            s.classList.remove('text-yellow-400');
+                            s.classList.add('text-gray-300');
+                        }
+                    });
+                });
+            });
+
+            // ----------------
+            // Data Management
+            // ----------------
+            let sleepData = JSON.parse(localStorage.getItem('sleepData')) || [];
+
+            function saveSleepData() {
+                localStorage.setItem('sleepData', JSON.stringify(sleepData));
+            }
+
+            // Form submission
+            document.getElementById('sleepForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const date = document.getElementById('sleepDate').value;
+                const sleepTime = document.getElementById('sleepTime').value;
+                const wakeTime = document.getElementById('wakeTime').value;
+                const sleepDuration = document.getElementById('sleepDuration').textContent;
+                const rating = parseInt(document.getElementById('sleepRating').value);
+                
+                // Create new entry
+                const newEntry = {
+                    id: Date.now().toString(), // Unique ID
+                    date,
+                    sleepTime,
+                    wakeTime,
+                    duration: sleepDuration,
+                    rating
+                };
+                
+                // Check if entry for this date already exists
+                const existingIndex = sleepData.findIndex(entry => entry.date === date);
+                
+                if (existingIndex !== -1) {
+                    // Update existing entry
+                    sleepData[existingIndex] = newEntry;
+                    showNotification('Sleep entry updated!', 'success');
+                } else {
+                    // Add new entry
+                    sleepData.push(newEntry);
+                    showNotification('Sleep entry saved!', 'success');
+                }
+                
+                // Save data
+                saveSleepData();
+                
+                // Clear form or preset for next day
+                resetForm();
+                
+                // Switch to tracker tab
+                activateTab('tracker');
+            });
+
+            // Reset form with next day selected
+            function resetForm() {
+                const ratingInput = document.getElementById('sleepRating');
+                ratingInput.value = 0;
+                
+                // Reset star display
+                stars.forEach(s => {
+                    s.classList.remove('text-yellow-400');
+                    s.classList.add('text-gray-300');
+                });
+                
+                // Set date to today
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = (today.getMonth() + 1).toString().padStart(2, '0');
+                const day = today.getDate().toString().padStart(2, '0');
+                document.getElementById('sleepDate').value = `${year}-${month}-${day}`;
+            }
+
+            // Initialize form with today's date
+            resetForm();
+
+            // ----------------
+            // Calendar Rendering
+            // ----------------
+            function renderCalendar() {
+                const calendarGrid = document.getElementById('calendarGrid');
+                calendarGrid.innerHTML = '';
+
+                // Get the current date and the first day of the month
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+
+                // Create headers for days of the week
+                const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                daysOfWeek.forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'text-xs font-medium text-center text-gray-500 dark:text-gray-400';
+                    dayHeader.textContent = day;
+                    calendarGrid.appendChild(dayHeader);
+                });
+
+                // Calculate the number of days to display (past 60 days)
+                const totalDays = 60;
+                const daysToShow = [];
+
+                for (let i = totalDays - 1; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    daysToShow.push(date);
+                }
+
+                // Calculate how many empty cells we need at the beginning
+                // to align the grid correctly
+                const firstDayIndex = daysToShow[0].getDay();
+                for (let i = 0; i < firstDayIndex; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'h-6 bg-transparent rounded';
+                    calendarGrid.appendChild(emptyCell);
+                }
+
+                // Create cells for each day
+                daysToShow.forEach(date => {
+                    const day = date.getDate();
+                    const month = date.getMonth();
+                    const year = date.getFullYear();
+                    const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    
+                    const dayCell = document.createElement('div');
+                    dayCell.className = 'h-6 relative tooltip';
+                    
+                    // Check if we have data for this day
+                    const dayData = sleepData.find(entry => entry.date === dateStr);
+                    
+                    if (dayData) {
+                        // Extract hours from duration for color intensity
+                        const durationMatch = dayData.duration.match(/(\d+)h/);
+                        let hours = 0;
+                        if (durationMatch) {
+                            hours = parseInt(durationMatch[1]);
+                        }
+                        
+                        // Determine color scale based on hours (0-9 scale)
+                        let colorScale = Math.min(Math.floor(hours), 9);
+                        dayCell.classList.add(`color-scale-${colorScale}`);
+                        
+                        // If rating is 4 or higher, add dot indicator
+                        if (dayData.rating >= 4) {
+                            const qualityDot = document.createElement('div');
+                            qualityDot.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-purple-500 rounded-full';
+                            dayCell.appendChild(qualityDot);
+                        }
+                        
+                        // Add tooltip
+                        const tooltipText = document.createElement('span');
+                        tooltipText.className = 'tooltip-text';
+                        tooltipText.textContent = `${dayData.duration} • ${'★'.repeat(dayData.rating)} • ${new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                        dayCell.appendChild(tooltipText);
+                    } else {
+                        dayCell.classList.add('bg-gray-100');
+                        dayCell.classList.add('dark:bg-gray-700');
+                    }
+                    
+                    // Highlight today's cell with border
+                    if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                        dayCell.classList.add('ring-2');
+                        dayCell.classList.add('ring-primary');
+                    }
+                    
+                    calendarGrid.appendChild(dayCell);
+                });
+            }
+
+            // ----------------
+            // Weekly Chart
+            // ----------------
+            function renderWeeklyChart() {
+                const chartContainer = document.getElementById('weeklyChart');
+                chartContainer.innerHTML = '';
+                
+                // Get the last 7 days
+                const lastWeek = [];
+                const today = new Date();
+                
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(today.getDate() - i);
+                    
+                    const year = date.getFullYear();
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    const day = date.getDate().toString().padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    
+                    const dayData = sleepData.find(entry => entry.date === dateStr);
+                    
+                    lastWeek.push({
+                        date,
+                        dateStr,
+                        dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                        data: dayData
+                    });
+                }
+                
+                // Create SVG for chart
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('width', '100%');
+                svg.setAttribute('height', '100%');
+                svg.setAttribute('viewBox', '0 0 800 180');
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                chartContainer.appendChild(svg);
+                
+                // Chart dimensions
+                const chartWidth = 750;
+                const chartHeight = 140;
+                const barSpacing = 80;
+                const barWidth = 40;
+                const leftPadding = 50;
+                const bottomPadding = 30;
+                
+                // Draw axes
+                const axisG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                
+                // X axis
+                const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                xAxis.setAttribute('x1', leftPadding);
+                xAxis.setAttribute('y1', chartHeight + bottomPadding);
+                xAxis.setAttribute('x2', chartWidth);
+                xAxis.setAttribute('y2', chartHeight + bottomPadding);
+                xAxis.setAttribute('stroke', '#9CA3AF');
+                xAxis.setAttribute('stroke-width', '1');
+                axisG.appendChild(xAxis);
+                
+                // Y axis
+                const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                yAxis.setAttribute('x1', leftPadding);
+                yAxis.setAttribute('y1', bottomPadding);
+                yAxis.setAttribute('x2', leftPadding);
+                yAxis.setAttribute('y2', chartHeight + bottomPadding);
+                yAxis.setAttribute('stroke', '#9CA3AF');
+                yAxis.setAttribute('stroke-width', '1');
+                axisG.appendChild(yAxis);
+                
+                // Y axis labels (hours)
+                for (let hour = 0; hour <= 12; hour += 3) {
+                    if (hour === 0) continue; // Skip 0 hours
+                    
+                    const y = chartHeight + bottomPadding - (hour * (chartHeight / 12));
+                    
+                    const hourLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    hourLine.setAttribute('x1', leftPadding - 5);
+                    hourLine.setAttribute('y1', y);
+                    hourLine.setAttribute('x2', chartWidth);
+                    hourLine.setAttribute('y2', y);
+                    hourLine.setAttribute('stroke', '#D1D5DB');
+                    hourLine.setAttribute('stroke-width', '0.5');
+                    hourLine.setAttribute('stroke-dasharray', '2 2');
+                    axisG.appendChild(hourLine);
+                    
+                    const hourLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    hourLabel.setAttribute('x', leftPadding - 10);
+                    hourLabel.setAttribute('y', y + 4);
+                    hourLabel.setAttribute('text-anchor', 'end');
+                    hourLabel.setAttribute('font-size', '12');
+                    hourLabel.setAttribute('fill', '#6B7280');
+                    hourLabel.textContent = `${hour}h`;
+                    axisG.appendChild(hourLabel);
+                }
+                
+                svg.appendChild(axisG);
+                
+                // Draw bars
+                const chartG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                
+                // Goal line (8 hours)
+                const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                goalLine.setAttribute('x1', leftPadding);
+                goalLine.setAttribute('y1', chartHeight + bottomPadding - (8 * (chartHeight / 12)));
+                goalLine.setAttribute('x2', chartWidth);
+                goalLine.setAttribute('y2', chartHeight + bottomPadding - (8 * (chartHeight / 12)));
+                goalLine.setAttribute('stroke', '#10B981');
+                goalLine.setAttribute('stroke-width', '2');
+                goalLine.setAttribute('stroke-dasharray', '5 3');
+                chartG.appendChild(goalLine);
+                
+                lastWeek.forEach((day, index) => {
+                    // X position for this day's bar
+                    const x = leftPadding + (index * barSpacing) + barSpacing / 2;
+                    
+                    // Day name labels
+                    const dayLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    dayLabel.setAttribute('x', x);
+                    dayLabel.setAttribute('y', chartHeight + bottomPadding + 20);
+                    dayLabel.setAttribute('text-anchor', 'middle');
+                    dayLabel.setAttribute('font-size', '12');
+                    dayLabel.setAttribute('fill', '#6B7280');
+                    dayLabel.textContent = day.dayName;
+                    chartG.appendChild(dayLabel);
+                    
+                    if (day.data) {
+                        // Extract hours and minutes from duration
+                        const durationMatch = day.data.duration.match(/(\d+)h\s+(\d+)m/);
+                        let hours = 0;
+                        let minutes = 0;
+                        
+                        if (durationMatch) {
+                            hours = parseInt(durationMatch[1]);
+                            minutes = parseInt(durationMatch[2]);
+                        }
+                        
+                        // Calculate total hours including minutes
+                        const totalHours = hours + (minutes / 60);
+                        
+                        // Bar height based on hours (max 12 hours)
+                        const barHeight = Math.min(totalHours, 12) * (chartHeight / 12);
+                        
+                        // Bar
+                        const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        bar.setAttribute('x', x - barWidth / 2);
+                        bar.setAttribute('y', chartHeight + bottomPadding - barHeight);
+                        bar.setAttribute('width', barWidth);
+                        bar.setAttribute('height', barHeight);
+                        bar.setAttribute('fill', '#5D5CDE');
+                        bar.setAttribute('rx', '4');
+                        
+                        // If rating is 4 or more, add an indicator
+                        if (day.data.rating >= 4) {
+                            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+                            gradient.setAttribute('id', `barGradient-${index}`);
+                            gradient.setAttribute('gradientTransform', 'rotate(90)');
+                            
+                            const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                            stop1.setAttribute('offset', '0%');
+                            stop1.setAttribute('stop-color', '#5D5CDE');
+                            gradient.appendChild(stop1);
+                            
+                            const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                            stop2.setAttribute('offset', '100%');
+                            stop2.setAttribute('stop-color', '#9F7AEA');
+                            gradient.appendChild(stop2);
+                            
+                            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                            defs.appendChild(gradient);
+                            svg.appendChild(defs);
+                            
+                            bar.setAttribute('fill', `url(#barGradient-${index})`);
+                        }
+                        
+                        // Add value on top of bar
+                        const valueLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        valueLabel.setAttribute('x', x);
+                        valueLabel.setAttribute('y', chartHeight + bottomPadding - barHeight - 8);
+                        valueLabel.setAttribute('text-anchor', 'middle');
+                        valueLabel.setAttribute('font-size', '12');
+                        valueLabel.setAttribute('fill', '#5D5CDE');
+                        valueLabel.textContent = `${hours}h${minutes ? ` ${minutes}m` : ''}`;
+                        
+                        chartG.appendChild(bar);
+                        chartG.appendChild(valueLabel);
+                    }
+                });
+                
+                svg.appendChild(chartG);
+            }
+
+            // ----------------
+            // Statistics
+            // ----------------
+            function updateStats() {
+                // Calculate 30-day average
+                const today = new Date();
+                let totalMinutes = 0;
+                let daysWithData = 0;
+                
+                for (let i = 0; i < 30; i++) {
+                    const date = new Date();
+                    date.setDate(today.getDate() - i);
+                    
+                    const year = date.getFullYear();
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    const day = date.getDate().toString().padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    
+                    const entry = sleepData.find(e => e.date === dateStr);
+                    
+                    if (entry) {
+                        const durationMatch = entry.duration.match(/(\d+)h\s+(\d+)m/);
+                        if (durationMatch) {
+                            const hours = parseInt(durationMatch[1]);
+                            const minutes = parseInt(durationMatch[2]);
+                            totalMinutes += (hours * 60) + minutes;
+                            daysWithData++;
+                        }
+                    }
+                }
+                
+                const averageElement = document.getElementById('averageSleep');
+                const progressElement = document.getElementById('averageProgress');
+                
+                if (daysWithData > 0) {
+                    const averageMinutes = totalMinutes / daysWithData;
+                    const avgHours = Math.floor(averageMinutes / 60);
+                    const avgMinutes = Math.round(averageMinutes % 60);
+                    
+                    averageElement.textContent = `${avgHours}h ${avgMinutes.toString().padStart(2, '0')}m`;
+                    
+                    // Calculate progress percentage (8 hours = 100%)
+                    const progressPercent = Math.min(Math.round((averageMinutes / 480) * 100), 100);
+                    progressElement.style.width = `${progressPercent}%`;
+                } else {
+                    averageElement.textContent = 'No data';
+                    progressElement.style.width = '0%';
+                }
+                
+                // Calculate streak
+                const streakElement = document.getElementById('streakCount');
+                let currentStreak = 0;
+                
+                // Sort entries by date (descending)
+                const sortedEntries = [...sleepData].sort((a, b) => {
+                    return new Date(b.date) - new Date(a.date);
+                });
+                
+                if (sortedEntries.length > 0) {
+                    // Count consecutive days with quality sleep (rating >= 4)
+                    for (let i = 0; i < sortedEntries.length; i++) {
+                        const entry = sortedEntries[i];
+                        
+                        // Check if entry is for a consecutive day
+                        if (i > 0) {
+                            const currentDate = new Date(entry.date);
+                            const prevDate = new Date(sortedEntries[i-1].date);
+                            
+                            // Calculate days between dates
+                            const diffTime = prevDate - currentDate;
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            // If not consecutive or not good quality, break streak
+                            if (diffDays !== 1 || entry.rating < 4) {
+                                break;
+                            }
+                        } else {
+                            // First entry needs to be good quality
+                            if (entry.rating < 4) {
+                                break;
+                            }
+                        }
+                        
+                        currentStreak++;
+                    }
+                    
+                    if (currentStreak > 0) {
+                        streakElement.textContent = `${currentStreak} consecutive good nights!`;
+                    } else {
+                        streakElement.textContent = 'No current streak';
+                    }
+                } else {
+                    streakElement.textContent = 'No data yet';
+                }
+            }
+
+            // ----------------
+            // Notifications
+            // ----------------
+            function showNotification(message, type = 'info') {
+                const container = document.getElementById('notificationContainer');
+                
+                const notification = document.createElement('div');
+                notification.className = `px-4 py-2 mb-2 rounded-lg shadow-lg text-white transition-all duration-300 transform translate-x-full`;
+                
+                if (type === 'success') {
+                    notification.classList.add('bg-green-500');
+                } else if (type === 'error') {
+                    notification.classList.add('bg-red-500');
+                } else {
+                    notification.classList.add('bg-primary');
+                }
+                
+                notification.textContent = message;
+                container.appendChild(notification);
+                
+                // Animate in
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full');
+                }, 10);
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    notification.classList.add('opacity-0');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 300);
+                }, 3000);
+            }
+
+            // ----------------
+            // Import/Export
+            // ----------------
+            document.getElementById('exportBtn').addEventListener('click', function() {
+                const dataStr = JSON.stringify(sleepData, null, 2);
+                const blob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                
+                // Create a temporary link and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sleep-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+                
+                showNotification('Data exported successfully!', 'success');
+            });
+
+            document.getElementById('importFile').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        // Validate data structure
+                        if (Array.isArray(importedData) && importedData.every(entry => {
+                            return typeof entry === 'object' 
+                                && 'date' in entry 
+                                && 'sleepTime' in entry 
+                                && 'wakeTime' in entry 
+                                && 'duration' in entry 
+                                && 'rating' in entry;
+                        })) {
+                            // Replace current data
+                            sleepData = importedData;
+                            saveSleepData();
+                            
+                            // Refresh UI
+                            renderCalendar();
+                            renderWeeklyChart();
+                            updateStats();
+                            
+                            showNotification('Data imported successfully!', 'success');
+                        } else {
+                            showNotification('Invalid data format!', 'error');
+                        }
+                    } catch (err) {
+                        showNotification('Error importing data!', 'error');
+                        console.error('Import error:', err);
+                    }
+                    
+                    // Reset file input
+                    e.target.value = '';
+                };
+                reader.readAsText(file);
+            });
+
+            document.getElementById('clearDataBtn').addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear all sleep data? This cannot be undone.')) {
+                    sleepData = [];
+                    saveSleepData();
+                    
+                    // Refresh UI
+                    renderCalendar();
+                    renderWeeklyChart();
+                    updateStats();
+                    
+                    showNotification('All data cleared!', 'info');
+                }
+            });
+
+            // ----------------
+            // Initialize App
+            // ----------------
+            // Activate default tab
+            activateTab('tracker');
+        });
+    </script>
+</body>
+</html>
